@@ -1,33 +1,25 @@
-<details markdown="1">
-  <summary>目录</summary>
+# Java 安全指南
 
--   [1 安卓类](#1)
-    *   [I. 代码实现](#1.1)
-		+   [1.1 异常捕获处理](#1.1.1)
-		+   [1.2 数据泄露](#1.1.2)
-		+   [1.3 webview 组件安全](#1.1.3)
-		+   [1.4 传输安全](#1.1.4)
-    *   [II. 配置&环境](#1.2)
-		+   [2.1 AndroidManifest.xml 配置](#1.2.1)
--   [2 后台类](#2)
-    *   [I. 代码实现](#2.1)
-		+   [1.1 数据持久化](#2.1.1)
-		+   [1.2 文件操作](#2.1.2)
-		+   [1.3 文件操作](#2.1.3)
-		+   [1.4 XML读写](#2.1.4)
-		+   [1.5 响应输出](#2.1.5)
-		+   [1.6 OS命令执行](#2.1.6)
-		+   [1.7 会话管理](#2.1.7)
-		+   [1.8 加解密](#2.1.8)
-		+   [1.9 查询业务](#2.1.9)
-		+   [1.10 操作业务](#2.1.10)
-    	</details>
+## 通用
 
-<a id="1"></a>
+### 1. 不可吞并异常
+
+即使异常本身不能处理，或者无关紧要也不要去吞并异常，除非你知道后果。
+
+```java
+try {
+  // ...
+  1 / 0;
+} catch (Exception e) {
+  // 这是应该使用日志将异常打印或者或者将异常继续抛出，不要什么都不处理
+  // 防止出问题之后，无法获取异常
+  log.error("exception", e) // 至少要打印日志，如果不打印日志增加特殊说明
+}
+```
+
 ## 安卓类
-<a id="1.1"></a>
+
 ### I. 代码实现
-<a id="1.1.1"></a>
 #### 1.1 异常捕获处理
 ##### 1.1.1 【必须】序列化异常捕获
 对于通过导出组件 intent 传递的序列化对象，必须进行 try...catch 处理，以避免数据非法导致应用崩溃。 
@@ -81,9 +73,6 @@ public class MainActivity extends Activity {
 }
 ```
 ##### 1.1.4 【必须】ClassNotFoundException 异常捕获
-同 1.1.3
-
-<a id="1.1.2"></a>
 #### 1.2 数据泄露
 ##### 1.2.1 【必须】logcat 输出限制
 release 版本禁止在 logcat 输出信息。
@@ -101,7 +90,6 @@ public class MainActivity extends Activity {
 }
 ```
 
-<a id="1.1.3"></a>
 #### 1.3 webview 组件安全
 ##### 1.3.1 【必须】addJavaScriptInterface 方法调用
 对于设置 minsdk <= 18 的应用，禁止调用 addJavaScriptInterface 方法。
@@ -177,7 +165,6 @@ public class MainActivity extends Activity {
     }
 }
 ```
-<a id="1.1.4"></a>
 #### 1.4 传输安全
 ##### 1.4.1 【必须】自定义 HostnameVerifier 类
 自定义 HostnameVerifier 类后，必须实现 verify 方法校验域名，以避免中间人攻击劫持。
@@ -232,9 +219,7 @@ public class MainActivity extends Activity {
 }
 ```
 
-<a id="1.2"></a>
 ### II. 配置&环境 
-<a id="1.2.1"></a>
 #### 2.1 AndroidManifest.xml 配置
 ##### 2.1.1 【必须】PermissionGroup 属性设置
 禁止设置 PermissionGroup 属性为空。
@@ -244,30 +229,26 @@ public class MainActivity extends Activity {
 最小范围和最小权限使用 sharedUserId 设置。
 ##### 2.1.4 【建议】allowBackup 备份设置
 如非产品功能需要，建议设置 allowBackup 为 false。
-```java
+```xml
 <application android:allowBackup="false"> 
 </application>
 ```
 ##### 2.1.5 【必须】debuggable 调试设置
 release 版本禁止设置 debuggable 为 true。
-```java
+```xml
 <application android:debuggable="false"> 
 </application>
 ```
 
-
-<a id="2"></a>
 ## 后台类
-<a id="2.1"></a>
 ### I. 代码实现
-<a id="2.1.1"></a>
 #### 1.1 数据持久化
 
 ##### 1.1.1【必须】SQL语句默认使用预编译并绑定变量
 
-Web后台系统应默认使用预编译绑定变量的形式创建sql语句，保持查询语句和数据相分离。以从本质上避免SQL注入风险。
+Web 后台系统应默认使用预编译绑定变量的形式创建 sql 语句，保持查询语句和数据相分离。以从本质上避免 SQL 注入风险。
 
-如使用Mybatis作为持久层框架，应通过\#{}语法进行参数绑定，MyBatis 会创建 `PreparedStatement` 参数占位符，并通过占位符安全地设置参数。
+如使用 Mybatis 作为持久层框架，应通过 `#{}` 语法进行参数绑定，MyBatis 会创建 `PreparedStatement` 参数占位符，并通过占位符安全地设置参数。
 
 示例：JDBC
 
@@ -285,10 +266,9 @@ Mybatis
 <select id="queryRuleIdByApplicationId" parameterType="java.lang.String" resultType="java.lang.String">    
       select rule_id from scan_rule_sqlmap_tab where application_id=#{applicationId} 
 </select>
-
 ```
 
-应避免外部输入未经过滤直接拼接到SQL语句中，或者通过Mybatis中的${}传入SQL语句（即使使用PreparedStatement，SQL语句直接拼接外部输入也同样有风险。例如Mybatis中部分参数通过${}传入SQL语句后实际执行时调用的是PreparedStatement.execute()，同样存在注入风险）。
+应避免外部输入未经过滤直接拼接到 SQL 语句中，或者通过 Mybatis 中的 ${} 传入 SQL 语句（即使使用 PreparedStatement，SQL语句直接拼接外部输入也同样有风险。例如Mybatis中部分参数通过 ${} 传入SQL语句后实际执行时调用的是PreparedStatement.execute()，同样存在注入风险）。
 
 ##### 1.1.2【必须】白名单过滤
 
@@ -300,7 +280,6 @@ public String someMethod(boolean sortOrder) {
  ...
 ```
 
-<a id="2.1.2"></a>
 #### 1.2 文件操作
 
 ##### 1.2.1【必须】文件类型限制
@@ -308,31 +287,31 @@ public String someMethod(boolean sortOrder) {
 须在服务器端采用白名单方式对上传或下载的文件类型、大小进行严格的限制。仅允许业务所需文件类型上传，避免上传.jsp、.jspx、.class、.java等可执行文件。参考示例：
 
 ```java
-       String file_name = file.getOriginalFilename();
-        String[] parts = file_name.split("\\.");
-        String suffix = parts[parts.length - 1];
-        switch (suffix){
-            case "jpeg":
-                suffix = ".jpeg";
-                break;
-            case "jpg":
-                suffix = ".jpg";
-                break;
-            case "bmp":
-                suffix = ".bmp";
-                break;
-            case "png":
-                suffix = ".png";
-                break;
-            default:
-                //handle error
-                return "error";
-        }
+String file_name = file.getOriginalFilename();
+String[] parts = file_name.split("\\.");
+String suffix = parts[parts.length - 1];
+switch (suffix){
+  case "jpeg":
+    suffix = ".jpeg";
+    break;
+  case "jpg":
+    suffix = ".jpg";
+    break;
+  case "bmp":
+    suffix = ".bmp";
+    break;
+  case "png":
+    suffix = ".png";
+    break;
+  default:
+    //handle error
+    return "error";
+}
 ```
 
 ##### 1.2.2【必须】禁止外部文件存储于可执行目录
 
-禁止外部文件存储于WEB容器的可执行目录（appBase）。建议保存在专门的文件服务器中。
+禁止外部文件存储于 WEB 容器的可执行目录（appBase）。建议保存在专门的文件服务器中。
 
 ##### 1.2.3【建议】避免路径拼接
 
@@ -340,9 +319,8 @@ public String someMethod(boolean sortOrder) {
 
 ##### 1.2.4【必须】避免路径穿越
 
-如因业务需要不能满足1.2.3的要求，文件路径、文件命中拼接了不可行数据，需判断请求文件名和文件路径参数中是否存在../或..\\(仅windows)， 如存在应判定路径非法并拒绝请求。		
+如因业务需要不能满足 1.2.3 的要求，文件路径、文件命中拼接了不可行数据，需判断请求文件名和文件路径参数中是否存在../或..\\(仅windows)， 如存在应判定路径非法并拒绝请求。
 
-<a id="2.1.3"></a>
 #### 1.3 网络访问
 
 ##### 1.3.1【必须】避免直接访问不可信地址
@@ -356,24 +334,22 @@ public String someMethod(boolean sortOrder) {
 127.0.0.0/8
 ```
 
-建议通过URL解析函数进行解析，获取host或者domain后通过DNS获取其IP，然后和内网地址进行比较。
+建议通过 URL 解析函数进行解析，获取 host 或者 domain 后通过DNS获取其IP，然后和内网地址进行比较。
 
 对已校验通过地址进行访问时，应关闭跟进跳转功能。
 
 参考示例：
 
 ```java
-     httpConnection = (HttpURLConnection) Url.openConnection();
-
-     httpConnection.setFollowRedirects(false);
+httpConnection = (HttpURLConnection) Url.openConnection();
+httpConnection.setFollowRedirects(false);
 ```
 
-<a id="2.1.4"></a>
 #### 1.4 XML读写
 
 ##### 1.4.1【必须】XML解析器关闭DTD解析
 
-读取外部传入XML文件时，XML解析器初始化过程中设置关闭DTD解析。
+读取外部传入 XML 文件时，XML 解析器初始化过程中设置关闭 DTD 解析。
 
 参考示例：
 
@@ -420,13 +396,11 @@ reader.setFeature("http://xml.org/sax/features/external-general-entities", false
 reader.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
 ```
 
-
-<a id="2.1.5"></a>
 #### 1.5 响应输出
 
-##### 1.5.1【必须】设置正确的HTTP响应包类型
+##### 1.5.1【必须】设置正确的 HTTP 响应包类型
 
-响应包的HTTP头“Content-Type”必须正确配置响应包的类型，禁止非HTML类型的响应包设置为“text/html”。此举会使浏览器在直接访问链接时，将非HTML格式的返回报文当做HTML解析，增加反射型XSS的触发几率。
+响应包的HTTP头 “Content-Type” 必须正确配置响应包的类型，禁止非 HTML 类型的响应包设置为 “text/html”。此举会使浏览器在直接访问链接时，将非 HTML 格式的返回报文当做HTML解析，增加反射型 XSS 的触发几率。
 
 ##### 1.5.2【建议】设置安全的HTTP响应头
 
@@ -453,8 +427,8 @@ reader.setFeature("http://xml.org/sax/features/external-parameter-entities", fal
   ...
   String currentOrigin = request.getHeader("Origin");
   if (currentOrigin.equals("https://domain.qq.com")) {
-         response.setHeader("Access-Control-Allow-Origin", currentOrigin);
-             }
+     response.setHeader("Access-Control-Allow-Origin", currentOrigin);
+  }
    ...
   ```
 
@@ -537,14 +511,14 @@ web view层通常通过模板技术或者表达式引擎来实现界面与业务
 	@ResponseBody
 	public String ELdemo(RepeatDTO repeat) {
 		ExpressionFactory expressionFactory = new ExpressionFactoryImpl();
-        SimpleContext simpleContext = new SimpleContext();
-        String exp = "${"+repeat.getel()+"}";
-        ValueExpression valueExpression =       expressionFactory.createValueExpression(simpleContext, exp, String.class);		
+    SimpleContext simpleContext = new SimpleContext();
+    String exp = "${"+repeat.getel()+"}";
+    ValueExpression valueExpression = expressionFactory.createValueExpression(simpleContext, exp, String.class);		
 		return valueExpression.getValue(simpleContext).toString();
 	}
 ```
 
-外部可通过el参数，将不可信输入拼接到EL表达式中并解析。
+外部可通过 el 参数，将不可信输入拼接到 EL 表达式中并解析。
 
 此时外部访问：x.x.x.x/ELdemo?el=”''.getClass().forName('java.lang.Runtime').getMethod('exec',''.getClass()).invoke(''.getClass().forName('java.lang.Runtime').getMethod('getRuntime').invoke(null),'open /Applications/Calculator.app')“ 可执行操作系统命令调出计算器。
 
@@ -553,14 +527,13 @@ web view层通常通过模板技术或者表达式引擎来实现界面与业务
 - 应避免外部输入的内容拼接到EL表达式或其他表达式引起、模板引擎进行解析。
 - 白名单过滤外部输入，仅允许字符、数字、下划线等。
 
-<a id="2.1.6"></a>
-#### 1.6 OS命令执行
+#### 1.6 OS 命令执行
 
 ##### 1.6.1【建议】避免不可信数据拼接操作系统命令
 
-当不可信数据存在时，应尽量避免外部数据拼接到操作系统命令使用 `Runtime` 和 `ProcessBuilder` 来执行。优先使用其他同类操作进行代替，比如通过文件系统API进行文件操作而非直接调用操作系统命令。
+当不可信数据存在时，应尽量避免外部数据拼接到操作系统命令使用 `Runtime` 和 `ProcessBuilder` 来执行。优先使用其他同类操作进行代替，比如通过文件系统 API 进行文件操作而非直接调用操作系统命令。
 
-##### 1.6.2【必须】避免创建SHELL操作
+##### 1.6.2【必须】避免创建 SHELL 操作
 
 如无法避免直接访问操作系统命令，需要严格管理外部传入参数，使不可信数据仅作为执行命令的参数而非命令。
 
@@ -579,7 +552,6 @@ web view层通常通过模板技术或者表达式引擎来实现界面与业务
   }
   ```
 
-<a id="2.1.7"></a>
 #### 1.7 会话管理
 
 ##### 1.7.1【必须】非一次有效身份凭证禁止在URL中传输
@@ -588,32 +560,30 @@ web view层通常通过模板技术或者表达式引擎来实现界面与业务
 
 ##### 1.7.2【必须】避免未经校验的数据直接给会话赋值
 
-防止会话信息被篡改，如恶意用户通过URL篡改手机号码等。
+防止会话信息被篡改，如恶意用户通过 URL 篡改手机号码等。
 
-<a id="2.1.8"></a>
 #### 1.8 加解密
 
 ##### 1.8.1【建议】对称加密
 
-建议使用AES，秘钥长度128位以上。禁止使用DES算法，由于秘钥太短，其为目前已知不安全加密算法。使用AES加密算法请参考以下注意事项：
+建议使用 AES，秘钥长度 128 位以上。禁止使用 DES 算法，由于秘钥太短，其为目前已知不安全加密算法。使用 AES 加密算法请参考以下注意事项：
 
-- AES算法如果采用CBC模式：每次加密时IV必须采用密码学安全的伪随机发生器（如/dev/urandom）,禁止填充全0等固定值。
-- AES算法如采用GCM模式，nonce须采用密码学安全的伪随机数
-- AES算法避免使用ECB模式，推荐使用GCM模式。
+- AES 算法如果采用 CBC 模式：每次加密时 IV 必须采用密码学安全的伪随机发生器（如/dev/urandom）,禁止填充全 0 等固定值。
+- AES 算法如采用 GCM 模式，nonce 须采用密码学安全的伪随机数
+- AES 算法避免使用 ECB 模式，推荐使用 GCM 模式。
 
 ##### 1.8.2【建议】非对称加密
 
-建议使用RSA算法，秘钥2048及以上。
+建议使用 RSA 算法，秘钥 2048 及以上。
 
 ##### 1.8.3【建议】哈希算法
 
-哈希算法推荐使用SHA-2及以上。对于签名场景，应使用HMAC算法。如果采用字符串拼接盐值后哈希的方式，禁止将盐值置于字符串开头，以避免哈希长度拓展攻击。
+哈希算法推荐使用 SHA-2 及以上。对于签名场景，应使用 HMAC 算法。如果采用字符串拼接盐值后哈希的方式，禁止将盐值置于字符串开头，以避免哈希长度拓展攻击。
 
 ##### 1.8.4【建议】密码存储策略
 
-建议采用随机盐+明文密码进行多轮哈希后存储密码。
+建议采用随机盐 + 明文密码进行多轮哈希后存储密码。
 
-<a id="2.1.9"></a>
 #### 1.9 查询业务
 
 ##### 1.9.1【必须】返回信息最小化
@@ -638,7 +608,6 @@ web view层通常通过模板技术或者表达式引擎来实现界面与业务
 2. 从可信结构中获取经过校验的当前请求账号的身份信息（如：session）。禁止从用户请求参数或Cookie中获取外部传入不可信用户身份直接进行查询。
 3. 验当前用户是否具备访问数据的权限
 
-<a id="2.1.10"></a>
 #### 1.10 操作业务
 
 ##### 1.10.1【必须】部署CSRF防御机制
@@ -700,3 +669,4 @@ CSRF是指跨站请求伪造（Cross-site request forgery），是web常见的�
 ##### 1.10.3【建议】加锁操作
 
 对于有次数限制的操作，比如抽奖。如果操作的过程中资源访问未正确加锁。在高并发的情况下可能造成条件竞争，导致实际操作成功次数多于用户实际操作资格次数。此类操作应加锁处理。
+
